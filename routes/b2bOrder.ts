@@ -17,6 +17,29 @@ export function b2bOrder () {
   return ({ body }: Request, res: Response, next: NextFunction) => {
     if (utils.isChallengeEnabled(challenges.rceChallenge) || utils.isChallengeEnabled(challenges.rceOccupyChallenge)) {
       const orderLinesData = body.orderLinesData || ''
+      if (typeof orderLinesData !== 'string') {
+        throw new Error('Invalid order lines data type')
+      }
+
+      const blockedWords = [
+        'this', 'constructor', 'prototype', '__proto__',
+        'process', 'require', 'global', 'module',
+        'Function', 'eval', 'exec', 'spawn', 'child_process',
+        'import', 'Reflect', 'Object'
+      ]
+
+      const hasBlockedWord = blockedWords.some(word => {
+        const regex = new RegExp(`\\b${word}\\b`, 'i')
+        return regex.test(orderLinesData)
+      })
+
+      const hasBackslash = orderLinesData.includes('\\')
+      const hasBracketLookup = /[\w\)\}\]"'\u0060/.]\s*\[/.test(orderLinesData)
+
+      if (hasBlockedWord || hasBackslash || hasBracketLookup) {
+        throw new Error('Blocked due to security policy')
+      }
+
       try {
         const sandbox = { safeEval, orderLinesData }
         vm.createContext(sandbox)
