@@ -58,7 +58,29 @@ export function getUserProfile () {
         if (!code) {
           throw new Error('Username is null')
         }
-        username = eval(code) // eslint-disable-line no-eval
+        const trimmedCode = code.trim()
+        const stringLiteralRegex = /^'([^'\\]|\\.)*'$|^"([^"\\]|\\.)*"$|^`([^`\\]|\\.)*`$/
+        const mathRegex = /^\d+(\s*[+\-*/]\s*\d+)*$/
+
+        if (stringLiteralRegex.test(trimmedCode)) {
+          const unwrapped = trimmedCode.slice(1, -1)
+          username = unwrapped.replace(/\\(.)/g, (match, char) => {
+            switch (char) {
+              case 'n': return '\n'
+              case 'r': return '\r'
+              case 't': return '\t'
+              case 'b': return '\b'
+              case 'f': return '\f'
+              case 'v': return '\v'
+              case '0': return '\0'
+              default: return char
+            }
+          })
+        } else if (mathRegex.test(trimmedCode) || /^\d+$/.test(trimmedCode)) {
+          username = eval(trimmedCode) // eslint-disable-line no-eval
+        } else {
+          throw new Error('Unsafe evaluation blocked')
+        }
       } catch (err) {
         username = '\\' + username
       }
